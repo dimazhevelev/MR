@@ -1,0 +1,17 @@
+motors:
+  - 5
+  - 3
+  - 6
+  - 12
+positions:
+  - 1
+  - 2
+  - 3
+  - 4
+functions:
+    - NF1:
+      funcName: printStatus
+      funcObject: '../hello.so'
+    - NF2:
+      funcName: nf2_1
+      funcObject: '../hello2.so'
