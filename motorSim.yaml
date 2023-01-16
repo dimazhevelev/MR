@@ -10,8 +10,8 @@ positions:
   - 4
 functions:
     - NF1:
-      funcName: printStatus
-      funcObject: '../hello.so'
+      funcName: pos0
+      funcObject: 'NetFuncs1.so'
     - NF2:
-      funcName: nf2_1
-      funcObject: '../hello2.so'
+      funcName: inc3
+      funcObject: 'NetFuncs2.so'

@@ -9,20 +9,10 @@
 #include <dlfcn.h>
 
 
-    using std::cout;
-    using std::cerr;
-
 
 void MRBrain::initialize(){
-
-    std::cout << "added handlers" << std::endl;
-//    addNetFunction("printStatus", "dima", "../hello.so");
-//    addNetFunction("zeroMotors", "zero1", "../hello.so");
-//    addNetFunction("inc0", "inc0", "../hello.so");
-//    addNetFunction("zeroMotors", "zero", "../hello.so");
-
-
     std::cout << "initializing Brain" << std::endl;
+    initLog("log.log");
     _mainThread = new MRTimedThread(1, [this] () { runNetFunctions(); });
     _noiseThread = new MRTimedThread(250, [this] () { makeNoise(); });
     _motorsThread = new MRTimedThread(2, [this] () { tickMotors(); });
@@ -52,10 +42,11 @@ void MRBrain::deinitialize(){
 
 
     // close the library
-    cout << "Closing library...\n";
+    std::cout << "Closing library...\n";
     for(auto handle : _dl_handles){
         dlclose(handle.second);
     }
+    _log_stream.close();
 }
 
 
@@ -71,25 +62,39 @@ void MRBrain::initPositions(py::list i_initial_positions){
 }
 
 void MRBrain::runNetFunctions(){
-
+    std::stringstream ss;
+    ss << "Positions : ";
+    for(auto pos : _positions)
+        ss << pos << ", ";
+    _log_stream << ss.str() << std::endl;
+    ss.str("");
+    ss << "Motors : ";
+    for(auto pos : _motor_positions)
+        ss << pos << ", ";
+    _log_stream << ss.str() << std::endl;
     for(auto net_function : _net_function_tags){
         _motors_lock.lock();
         _positions_lock.lock();
-        setMotors(_net_functions[net_function](_positions, _motor_positions));
+        auto new_positions = _net_functions[net_function](_positions, _motor_positions);
+        ss.str("");
+        for(auto pos : new_positions)
+            ss << pos << ", ";
+        _log_stream << "F " << net_function << " : " << ss.str() << std::endl;
+        setMotors(new_positions);
         _positions_lock.unlock();
         _motors_lock.unlock();
     }
-
+    _log_stream << std::endl;
 }
 
-void MRBrain::addNetFunction(std::string &i_functionName, std::string &i_functionTag, std::string &i_object_path) {
+int MRBrain::addNetFunction(std::string &i_functionName, std::string &i_functionTag, std::string &i_object_path) {
     auto new_handle_iter = _dl_handles.find(i_object_path);
     void *new_handle;
     if(new_handle_iter == _dl_handles.end()){
         new_handle = dlopen(i_object_path.c_str(), RTLD_LAZY);
         if (!new_handle) {
-            std::cout << "Unexpected error, couldn't load plugins";
-            return;
+            std::cout << "Unexpected error, couldn't load plugin (" << i_object_path << ")";
+            return -1;
         }
         _dl_handles.insert(std::make_pair(i_object_path, new_handle));
     }
@@ -104,14 +109,16 @@ void MRBrain::addNetFunction(std::string &i_functionName, std::string &i_functio
     NetFunction_t function = (NetFunction_t) dlsym(new_handle, i_functionName.c_str());
     const char *dlsym_error = dlerror();
     if (dlsym_error) {
-        cerr << "Cannot load symbol " << i_functionName << " : " << dlsym_error <<
+        std::cerr << "Cannot load symbol " << i_functionName << " : " << dlsym_error <<
              '\n';
         dlclose(new_handle);
-        return;
+        return -1;
     }
 
     _net_functions.insert(std::make_pair(i_functionTag, function));
     _net_function_tags.push_back(i_functionTag);
+
+    return 0;
 }
 
 void MRBrain::makeNoise(){
@@ -136,3 +143,6 @@ void MRBrain::setMotors(const std::vector<float> i_motor_positions){
     }
 }
 
+void MRBrain::initLog(const std::string &i_log){
+    _log_stream.open(i_log);
+}
