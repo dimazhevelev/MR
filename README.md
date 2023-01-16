@@ -32,7 +32,7 @@ functions: # a list of Net functions that will be used. the .so files should be 
 ## How to compile the code
 
 ```
-git clone https://github.com/dimazhevelev/MR.git
+git clone --recursive https://github.com/dimazhevelev/MR.git 
 cd MR
 mkdir build
 cd build
